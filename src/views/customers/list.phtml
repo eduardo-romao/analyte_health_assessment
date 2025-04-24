@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        tr, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .hidden {
+            display: none;
+        }
+        .container {
+            border: solid black 1px;
+            box-shadow: 0 4px 8px rgb(36 34 34 / 68%);
+            margin: 0 auto;
+            padding: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+        }
+        form p {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+        }
+        form p label {
+            width: 100%;
+        }
+        form .actions {
+            display: flex;
+            justify-content: center;
+        }
+        form .actions input[type="button"] {
+            margin-right: 20px;
+        }
+        label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Customers</h1>
+        <input type="button" value="Create Customer" id="create-customer-btn" onclick="customerForm.openForm()"/>
+        <hr>
+        <form id="customer-form" class="hidden">
+            <input type="hidden" name="customer[id]">
+            <input type="hidden" name="address[id]">
+            <p>
+                <label for="name">Name:</label>
+                <input type="text" maxlength="50" name="customer[name]" id="name" required>
+            </p>
+            <p>
+                <label for="email">Email:</label>
+                <input type="email" maxlength="50" name="customer[email]" required>
+            </p>
+            <p>
+                <label for="Address">Address:</label>
+                <input type="text" maxlength="100" name="address[address]" required>
+            </p>
+            <hr>
+            <div class="actions">
+                <input type="button" onclick="customerForm.save(this);" value="Save Customer" />
+                <input type="button" onclick="customerForm.closeForm();" value="Cancel" />
+            </div>
+        </form>
+        <table id="customers-list">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="customers-table"></tbody>
+        </table>
+    </div>
+    <script type="application/javascript">
+        class Service {
+            basePath = <?php echo getenv('APP_BASE_URL') ?>;
+            resource;
+
+            constructor(resource) {
+                this.resource = resource;
+            }
+
+            async delete(id) {
+                const options = {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                };
+                return fetch(
+                    this.basePath + this.resource + '/' + id,
+                    options
+                );
+            }
+
+            async post(data) {
+                const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                };
+                return fetch(
+                    this.basePath + this.resource,
+                    options
+                );
+            }
+
+            async put(id, data) {
+                const options = {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                };
+                return fetch(
+                    this.basePath + this.resource + '/' + id,
+                    options
+                );
+            }
+        }
+    </script>
+    <script type="application/javascript">
+        class CustomerSaveInput {
+            constructor(customer, address) {
+                this.customer = customer;
+                this.address = address;
+            }
+        }
+        class CustomerService extends Service {
+            constructor() {
+                super('/api/v1/customers');
+            }
+        }
+        class CustomerForm {
+            customerService;
+            customers = [];
+            constructor(customers = []) {
+                this.customerService = new CustomerService();
+                this.customers = customers;
+            }
+            async deleteCustomer(id, el) {
+                el.disabled = true;
+                const response = await this.customerService.delete(id);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    el.disabled = false;
+                    alert(errorData.message);
+                } else {
+                    const row = document.getElementById('customer-row-' + id);
+                    this.customers = this.customers.filter(customer => customer.id !== id);
+                    confirm('Customer deleted successfully.');
+                    row.remove();
+                    if (this.customers.length === 0) {
+                        this.showEmptyListMessage();
+                    }
+                }
+            }
+            async save(el) {
+                if (document.querySelector('input[name="customer[id]"]').value) {
+                    this.updateCustomer(el);
+                } else {
+                    this.createCustomer(el);
+                }
+            }
+            async createCustomer(el) {
+                const form = document.getElementById('customer-form');
+                el.disabled = true;
+                const formData = new FormData(form);
+
+                const customer = {
+                    id: formData.get('customer[id]'),
+                    name: formData.get('customer[name]'),
+                    email: formData.get('customer[email]')
+                };
+
+                const address = {
+                    id: formData.get('address[id]'),
+                    address: formData.get('address[address]'),
+                };
+
+                const customerSaveInput = new CustomerSaveInput(customer, address);
+                const response = await this.customerService.post(customerSaveInput);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    el.disabled = false;
+                    alert(errorData.message);
+                } else {
+                    const data = await response.json();
+                    confirm('Customer created successfully.');
+                    location.reload();
+                }
+            }
+            async updateCustomer(el) {
+                const form = document.getElementById('customer-form');
+                el.disabled = true;
+                const formData = new FormData(form);
+
+                const customer = {
+                    id: formData.get('customer[id]'),
+                    name: formData.get('customer[name]'),
+                    email: formData.get('customer[email]')
+                };
+
+                const address = {
+                    id: formData.get('address[id]'),
+                    address: formData.get('address[address]'),
+                };
+
+                const customerSaveInput = new CustomerSaveInput(customer, address);
+                const response = await this.customerService.put(customerSaveInput.customer.id, customerSaveInput);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    el.disabled = false;
+                    alert(errorData.message);
+                } else {
+                    const data = await response.json();
+                    confirm('Customer updated successfully.');
+                    location.reload();
+                }
+            }
+            clearForm() {
+                document.getElementById('customer-form').reset();
+            }
+            renderCustomersTable(target) {
+                target.innerHTML = '';
+                this.customers.forEach(customer => {
+                    const tr = document.createElement('tr');
+                    tr.id = `customer-row-${customer.id}`;
+                    
+                    tr.innerHTML = `
+                        <td>${customer.id}</td>
+                        <td>${customer.name}</td>
+                        <td>${customer.email}</td>
+                        <td>${customer.address?.address || ''}</td>
+                        <td>
+                            <button onclick="customerForm.openCustomerEditForm(${customer.id})">Edit</button>
+                            <button onclick="customerForm.deleteCustomer(${customer.id}, this)">Delete</button>
+                        </td>
+                    `;
+                    
+                    target.appendChild(tr);
+                });
+                if (this.customers.length === 0) {
+                    this.showEmptyListMessage();
+                }
+            }
+            showEmptyListMessage() {
+                const target = document.getElementById('customers-table');
+                target.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">No customers found.</td></tr>';
+            }
+            openCustomerEditForm(id) {
+                this.openForm();
+                const customer = this.customers.find(customer => customer.id === id);
+                document.querySelector('input[name="customer[id]"]').value = customer.id;
+                document.querySelector('input[name="customer[name]"]').value = customer.name;
+                document.querySelector('input[name="customer[email]"]').value = customer.email;
+                document.querySelector('input[name="address[id]"]').value = customer.address?.id || '';
+                document.querySelector('input[name="address[address]"]').value = customer.address?.address || '';
+            }
+            openForm() {
+                document.getElementById('create-customer-btn').classList.add('hidden');
+                document.getElementById('customers-list').classList.add('hidden');
+                document.getElementById('customer-form').classList.remove('hidden');
+                this.clearForm();
+            }
+            closeForm() {
+                document.getElementById('create-customer-btn').classList.remove('hidden');
+                document.getElementById('customers-list').classList.remove('hidden');
+                document.getElementById('customer-form').classList.add('hidden');
+                this.clearForm();
+            }
+        }
+    </script>
+    <script type="application/javascript">
+        const customerForm = new CustomerForm(
+            <?php echo json_encode($customers) ?>
+        );
+        customerForm.renderCustomersTable(document.getElementById('customers-table'));
+    </script>
+</body>
+
+</html>

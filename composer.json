@@ -1,0 +1,19 @@
+{
+    "name": "eduardo-romao/analyte_health_assessment",
+    "description": "Technical assessment for Analyte Health",
+    "version": "v1.0.0",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "require": {
+		"php": "^8.3.0"
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "php scripts/migrations.php"
+        ]
+    }
+}
